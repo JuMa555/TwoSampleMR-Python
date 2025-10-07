@@ -6,6 +6,7 @@ This repository contains a reimplementation of the [TwoSampleMR](https://github.
 It was developed as part of a master's thesis at UniZg-FER for academic purposes and learning.  
 
 
+[![PyPI version](https://badge.fury.io/py/twosamplemr.svg)](https://pypi.org/project/twosamplemr/)
 
 
 | Module | Description |
@@ -16,6 +17,13 @@ It was developed as part of a master's thesis at UniZg-FER for academic purposes
 | `mr.py` | Core MR methods (IVW, Egger, Median, Mode, GRIP). |
 | `heterogeneity.py` | Heterogeneity and pleiotropy tests. |
 | `multivariable_mr.py` | Multivariable MR framework. |
+
+
+
+
+## Installation
+pip install twosamplemr
+
 
 ## Example Usage:
 
@@ -31,3 +39,6 @@ dat = harmonise_data(exposure, outcome)
 res = mr(dat)
 print(res)
 ```
+
+## License
+MIT License © 2025 Jurica Matosic

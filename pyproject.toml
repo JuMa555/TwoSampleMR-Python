@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "twosamplemr"
+version = "0.1.1"
+description = "Two-sample Mendelian randomization implemented in Python"
+authors = [
+    { name="Jurica Matosic", email="jurica.juki.matosic@gmail.com" }
+]
+readme = "README.md"
+requires-python = ">=3.8"
+
+dependencies = [
+    "pandas",
+    "numpy",
+    "scipy",
+    "matplotlib",
+    "seaborn",
+    "statsmodels",
+    "ieugwaspy",
+    "requests",
+    "dotenv"
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+
+[project.urls]
+Homepage = "https://github.com/JuMa555/TwoSampleMR-Python"
+Repository = "https://github.com/JuMa555/TwoSampleMR-Python"
