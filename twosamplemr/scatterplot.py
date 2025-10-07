@@ -1,8 +1,10 @@
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from mr import mr_egger_regression, mr_egger_regression_bootstrap, default_parameters
 import seaborn as sns
-import matplotlib.pyplot as plt
+
+from .mr import default_parameters, mr_egger_regression, mr_egger_regression_bootstrap
+
 
 def mr_scatter_plot(mr_results, dat):
     plots = {}
@@ -20,7 +22,9 @@ def mr_scatter_plot(mr_results, dat):
         d.loc[index, "beta.exposure"] *= -1
         d.loc[index, "beta.outcome"] *= -1
 
-        mrres = mr_results[(mr_results["id.exposure"] == id_exp) & (mr_results["id.outcome"] == id_out)].copy()
+        mrres = mr_results[
+            (mr_results["id.exposure"] == id_exp) & (mr_results["id.outcome"] == id_out)
+        ].copy()
         mrres["a"] = 0
 
         if "MR Egger" in mrres["method"].values:
@@ -29,7 +33,7 @@ def mr_scatter_plot(mr_results, dat):
                 d["beta.outcome"].values,
                 d["se.exposure"].values,
                 d["se.outcome"].values,
-                default_parameters()
+                default_parameters(),
             )
             mrres.loc[mrres["method"] == "MR Egger", "a"] = temp["b_i"]
 
@@ -39,16 +43,23 @@ def mr_scatter_plot(mr_results, dat):
                 d["beta.outcome"].values,
                 d["se.exposure"].values,
                 d["se.outcome"].values,
-                default_parameters()
+                default_parameters(),
             )
             mrres.loc[mrres["method"] == "MR Egger (bootstrap)", "a"] = temp["b_i"]
 
         fig, ax = plt.subplots(figsize=(6, 6))
 
-        ax.errorbar(d["beta.exposure"], d["beta.outcome"],
-                    xerr=d["se.exposure"], yerr=d["se.outcome"],
-                    fmt='o', color='black', ecolor='grey', alpha=0.7)
-        
+        ax.errorbar(
+            d["beta.exposure"],
+            d["beta.outcome"],
+            xerr=d["se.exposure"],
+            yerr=d["se.outcome"],
+            fmt="o",
+            color="black",
+            ecolor="grey",
+            alpha=0.7,
+        )
+
         palette = sns.color_palette("tab10", n_colors=20)
         method_colors = dict(zip(mrres["method"], palette))
 
@@ -64,7 +75,12 @@ def mr_scatter_plot(mr_results, dat):
 
         ax.set_xlabel(f"SNP effect on {d['exposure'].iloc[0]}")
         ax.set_ylabel(f"SNP effect on {d['outcome'].iloc[0]}")
-        ax.legend(title="MR Test", loc="upper left", bbox_to_anchor=(1.05, 1), borderaxespad=0.)
+        ax.legend(
+            title="MR Test",
+            loc="upper left",
+            bbox_to_anchor=(1.05, 1),
+            borderaxespad=0.0,
+        )
         ax.set_title(f"{id_exp} → {id_out}")
         ax.grid(True)
 
@@ -75,11 +91,11 @@ def mr_scatter_plot(mr_results, dat):
 
 def blank_plot(message):
     fig, ax = plt.subplots()
-    ax.text(0, 0, message, ha='center', va='center', fontsize=12)
+    ax.text(0, 0, message, ha="center", va="center", fontsize=12)
     ax.set_xticks([])
     ax.set_yticks([])
-    ax.set_xlabel('')
-    ax.set_ylabel('')
+    ax.set_xlabel("")
+    ax.set_ylabel("")
     ax.set_frame_on(False)
     ax.set_xlim(-1, 1)
     ax.set_ylim(-1, 1)

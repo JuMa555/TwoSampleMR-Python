@@ -1,6 +1,8 @@
 import numpy as np
 import pandas as pd
-from mr import default_parameters, mr_method_list, method_map, mr_egger_regression
+
+from .mr import default_parameters, method_map, mr_egger_regression, mr_method_list
+
 
 def mr_heterogeneity(dat, parameters=None, method_list=None):
     if parameters is None:
@@ -21,7 +23,9 @@ def mr_heterogeneity(dat, parameters=None, method_list=None):
         x = group[group["mr_keep"]].copy()
 
         if len(x) < 2:
-            print(f"Not enough SNPs available for Heterogeneity analysis of '{id_exp}' on '{id_out}'")
+            print(
+                f"Not enough SNPs available for Heterogeneity analysis of '{id_exp}' on '{id_out}'"
+            )
             continue
 
         res_list = []
@@ -32,7 +36,7 @@ def mr_heterogeneity(dat, parameters=None, method_list=None):
                 x["beta.outcome"].values,
                 x["se.exposure"].values,
                 x["se.outcome"].values,
-                parameters
+                parameters,
             )
             res_list.append(res)
 
@@ -42,24 +46,39 @@ def mr_heterogeneity(dat, parameters=None, method_list=None):
             for meth in method_list
         ]
 
-        het_tab = pd.DataFrame({
-            "id.exposure": [id_exp] * len(res_list),
-            "id.outcome": [id_out] * len(res_list),
-            "outcome": [x["outcome"].iloc[0]] * len(res_list),
-            "exposure": [x["exposure"].iloc[0]] * len(res_list),
-            "method": method_names,
-            "Q": [r.get("Q", np.nan) for r in res_list],
-            "Q_df": [r.get("Q_df", np.nan) for r in res_list],
-            "Q_pval": [r.get("Q_pval", np.nan) for r in res_list]
-        })
+        het_tab = pd.DataFrame(
+            {
+                "id.exposure": [id_exp] * len(res_list),
+                "id.outcome": [id_out] * len(res_list),
+                "outcome": [x["outcome"].iloc[0]] * len(res_list),
+                "exposure": [x["exposure"].iloc[0]] * len(res_list),
+                "method": method_names,
+                "Q": [r.get("Q", np.nan) for r in res_list],
+                "Q_df": [r.get("Q_df", np.nan) for r in res_list],
+                "Q_pval": [r.get("Q_pval", np.nan) for r in res_list],
+            }
+        )
 
-        het_tab = het_tab[~(het_tab["Q"].isna() & het_tab["Q_df"].isna() & het_tab["Q_pval"].isna())]
+        het_tab = het_tab[
+            ~(het_tab["Q"].isna() & het_tab["Q_df"].isna() & het_tab["Q_pval"].isna())
+        ]
         results.append(het_tab)
 
     if results:
         return pd.concat(results, ignore_index=True)
     else:
-        return pd.DataFrame(columns=["id.exposure", "id.outcome", "outcome", "exposure", "method", "Q", "Q_df", "Q_pval"])
+        return pd.DataFrame(
+            columns=[
+                "id.exposure",
+                "id.outcome",
+                "outcome",
+                "exposure",
+                "method",
+                "Q",
+                "Q_df",
+                "Q_pval",
+            ]
+        )
 
 
 def mr_pleiotropy_test(dat):
@@ -71,7 +90,9 @@ def mr_pleiotropy_test(dat):
         x = group[group["mr_keep"]].copy()
 
         if len(x) < 2:
-            print(f"Not enough SNPs available for pleiotropy analysis of '{id_exp}' on '{id_out}'")
+            print(
+                f"Not enough SNPs available for pleiotropy analysis of '{id_exp}' on '{id_out}'"
+            )
             continue
 
         res = mr_egger_regression(
@@ -79,22 +100,34 @@ def mr_pleiotropy_test(dat):
             x["beta.outcome"].values,
             x["se.exposure"].values,
             x["se.outcome"].values,
-            default_parameters()
+            default_parameters(),
         )
 
-        out = pd.DataFrame({
-            "id.exposure": [id_exp],
-            "id.outcome": [id_out],
-            "outcome": [x["outcome"].iloc[0]],
-            "exposure": [x["exposure"].iloc[0]],
-            "egger_intercept": [res["b_i"]],
-            "se": [res["se_i"]],
-            "pval": [res["pval_i"]]
-        })
+        out = pd.DataFrame(
+            {
+                "id.exposure": [id_exp],
+                "id.outcome": [id_out],
+                "outcome": [x["outcome"].iloc[0]],
+                "exposure": [x["exposure"].iloc[0]],
+                "egger_intercept": [res["b_i"]],
+                "se": [res["se_i"]],
+                "pval": [res["pval_i"]],
+            }
+        )
 
         results.append(out)
 
     if results:
         return pd.concat(results, ignore_index=True)
     else:
-        return pd.DataFrame(columns=["id.exposure", "id.outcome", "outcome", "exposure", "egger_intercept", "se", "pval"])
+        return pd.DataFrame(
+            columns=[
+                "id.exposure",
+                "id.outcome",
+                "outcome",
+                "exposure",
+                "egger_intercept",
+                "se",
+                "pval",
+            ]
+        )

@@ -1,8 +1,10 @@
 import numpy as np
-from scipy import stats
 import statsmodels.api as sm
-from mr import mr_sign
-from rucker import isq, mr_rucker
+from scipy import stats
+
+from .mr import mr_sign
+from .rucker import isq, mr_rucker
+
 
 def system_metrics(dat):
     metrics = {}
@@ -10,32 +12,38 @@ def system_metrics(dat):
     metrics["nout"] = dat["samplesize.outcome"].mean(skipna=True)
     metrics["nexp"] = dat["samplesize.exposure"].mean(skipna=True)
 
-    Fstat = (dat["beta.exposure"]**2 / dat["se.exposure"]**2).replace([np.inf, -np.inf], 300)
+    Fstat = (dat["beta.exposure"] ** 2 / dat["se.exposure"] ** 2).replace(
+        [np.inf, -np.inf], 300
+    )
     metrics["meanF"] = Fstat.mean(skipna=True)
     metrics["varF"] = Fstat.var(skipna=True)
     metrics["medianF"] = Fstat.median(skipna=True)
 
     if len(dat) > 1:
-        metrics["egger_isq"] = isq(np.abs(dat["beta.exposure"].values), dat["se.exposure"].values)
+        metrics["egger_isq"] = isq(
+            np.abs(dat["beta.exposure"].values), dat["se.exposure"].values
+        )
 
     if len(dat) > 2:
         sct = mr_sign(
             dat["beta.exposure"].values,
             dat["beta.outcome"].values,
             dat["se.exposure"].values,
-            dat["se.outcome"].values
+            dat["se.outcome"].values,
         )
         metrics["sct"] = -np.log10(sct["pval"]) * np.sign(sct["b"])
 
         ruck = mr_rucker(dat)
-        ruck=ruck[0]
+        ruck = ruck[0]
         Q = ruck["Q"]
         intercept = ruck["intercept"]
 
         metrics["Isq"] = (Q["Q"].iloc[0] - (Q["df"].iloc[0] - 1)) / Q["Q"].iloc[0]
         metrics["Isqe"] = (Q["Q"].iloc[1] - (Q["df"].iloc[1] - 1)) / Q["Q"].iloc[1]
         metrics["Qdiff"] = Q["Q"].iloc[2]
-        metrics["intercept"] = abs(intercept["Estimate"].iloc[0]) / intercept["SE"].iloc[0]
+        metrics["intercept"] = (
+            abs(intercept["Estimate"].iloc[0]) / intercept["SE"].iloc[0]
+        )
 
         # IVW
         lmod_ivw = ruck["lmod_ivw"]
@@ -62,10 +70,10 @@ def system_metrics(dat):
         metrics["cooks_egger"] = np.mean(cooks_egger > thresh_cooks_egger)
 
         # Breusch-Pagan
-        exog_ivw = sm.add_constant(lmod_ivw.model.exog, has_constant='add')
+        exog_ivw = sm.add_constant(lmod_ivw.model.exog, has_constant="add")
         bp_ivw = sm.stats.diagnostic.het_breuschpagan(lmod_ivw.resid, exog_ivw)
 
-        exog_egger = sm.add_constant(lmod_egger.model.exog, has_constant='add')
+        exog_egger = sm.add_constant(lmod_egger.model.exog, has_constant="add")
         bp_egger = sm.stats.diagnostic.het_breuschpagan(lmod_egger.resid, exog_egger)
 
         metrics["homosc_ivw"] = bp_ivw[0]

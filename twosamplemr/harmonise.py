@@ -1,5 +1,6 @@
-import pandas as pd
 import numpy as np
+import pandas as pd
+
 
 def harmonise_cleanup_variables(df):
     df["beta.exposure"] = pd.to_numeric(df["beta.exposure"], errors="coerce")
@@ -7,28 +8,46 @@ def harmonise_cleanup_variables(df):
     df["eaf.exposure"] = pd.to_numeric(df["eaf.exposure"], errors="coerce")
     df["eaf.outcome"] = pd.to_numeric(df["eaf.outcome"], errors="coerce")
 
-    for col in ["effect_allele.exposure", "other_allele.exposure",
-                "effect_allele.outcome", "other_allele.outcome"]:
+    for col in [
+        "effect_allele.exposure",
+        "other_allele.exposure",
+        "effect_allele.outcome",
+        "other_allele.outcome",
+    ]:
         df[col] = df[col].str.upper()
 
     df["other_allele.outcome"] = df["other_allele.outcome"].replace("", np.nan)
 
     return df
 
+
 def harmonise_make_snp_effects_positive(df):
     negative_effects = df["beta.exposure"] < 0
     df.loc[negative_effects, "beta.exposure"] *= -1
-    df.loc[negative_effects, "eaf.exposure"] = 1 - df.loc[negative_effects, "eaf.exposure"]
-    df.loc[negative_effects, ["effect_allele.exposure", "other_allele.exposure"]] = \
-        df.loc[negative_effects, ["other_allele.exposure", "effect_allele.exposure"]].values
+    df.loc[negative_effects, "eaf.exposure"] = (
+        1 - df.loc[negative_effects, "eaf.exposure"]
+    )
+    df.loc[negative_effects, ["effect_allele.exposure", "other_allele.exposure"]] = (
+        df.loc[
+            negative_effects, ["other_allele.exposure", "effect_allele.exposure"]
+        ].values
+    )
     return df
 
+
 def check_palindromic(a1, a2):
-    return ((a1 == "T") & (a2 == "A")) | ((a1 == "A") & (a2 == "T")) | ((a1 == "G") & (a2 == "C")) | ((a1 == "C") & (a2 == "G"))
+    return (
+        ((a1 == "T") & (a2 == "A"))
+        | ((a1 == "A") & (a2 == "T"))
+        | ((a1 == "G") & (a2 == "C"))
+        | ((a1 == "C") & (a2 == "G"))
+    )
+
 
 def flip_alleles(allele):
     flip_map = {"A": "T", "T": "A", "C": "G", "G": "C"}
     return allele.map(flip_map)
+
 
 def recode_indels_22(A1, A2, B1, B2):
     ncA1 = A1.str.len()
@@ -77,6 +96,7 @@ def recode_indels_22(A1, A2, B1, B2):
 
     return pd.DataFrame({"A1": A1, "A2": A2, "B1": B1, "B2": B2, "keep": keep})
 
+
 def recode_indels_21(A1, A2, B1):
     ncA1 = A1.str.len()
     ncA2 = A2.str.len()
@@ -107,6 +127,7 @@ def recode_indels_21(A1, A2, B1):
     keep.loc[A1 == A2] = False
 
     return pd.DataFrame({"A1": A1, "A2": A2, "B1": B1, "B2": B2, "keep": keep})
+
 
 def recode_indels_12(A1, B1, B2):
     ncB1 = B1.str.len()
@@ -139,6 +160,7 @@ def recode_indels_12(A1, B1, B2):
 
     return pd.DataFrame({"A1": A1, "A2": A2, "B1": B1, "B2": B2, "keep": keep})
 
+
 def harmonise_22(SNP, A1, A2, B1, B2, betaA, betaB, fA, fB, tolerance, action):
     if len(SNP) == 0:
         return pd.DataFrame()
@@ -146,7 +168,9 @@ def harmonise_22(SNP, A1, A2, B1, B2, betaA, betaB, fA, fB, tolerance, action):
     jlog = {"alleles": "2-2"}
 
     indel_index = (A1.str.len() > 1) | (A2.str.len() > 1) | (A1 == "D") | (A1 == "I")
-    temp = recode_indels_22(A1[indel_index], A2[indel_index], B1[indel_index], B2[indel_index])
+    temp = recode_indels_22(
+        A1[indel_index], A2[indel_index], B1[indel_index], B2[indel_index]
+    )
 
     A1[indel_index] = temp["A1"].values
     A2[indel_index] = temp["A2"].values
@@ -199,24 +223,27 @@ def harmonise_22(SNP, A1, A2, B1, B2, betaA, betaB, fA, fB, tolerance, action):
     else:
         jlog["flipped_alleles_palindrome"] = 0
 
-    d = pd.DataFrame({
-        "SNP": SNP,
-        "effect_allele.exposure": A1,
-        "other_allele.exposure": A2,
-        "effect_allele.outcome": B1,
-        "other_allele.outcome": B2,
-        "beta.exposure": betaA,
-        "beta.outcome": betaB,
-        "eaf.exposure": fA,
-        "eaf.outcome": fB,
-        "remove": remove,
-        "palindromic": palindromic,
-        "ambiguous": (ambiguousA | ambiguousB) & palindromic
-    })
+    d = pd.DataFrame(
+        {
+            "SNP": SNP,
+            "effect_allele.exposure": A1,
+            "other_allele.exposure": A2,
+            "effect_allele.outcome": B1,
+            "other_allele.outcome": B2,
+            "beta.exposure": betaA,
+            "beta.outcome": betaB,
+            "eaf.exposure": fA,
+            "eaf.outcome": fB,
+            "remove": remove,
+            "palindromic": palindromic,
+            "ambiguous": (ambiguousA | ambiguousB) & palindromic,
+        }
+    )
 
     d.attrs["log"] = jlog
 
     return d
+
 
 def harmonise_21(SNP, A1, A2, B1, betaA, betaB, fA, fB, tolerance, action):
     if len(SNP) == 0:
@@ -245,14 +272,18 @@ def harmonise_21(SNP, A1, A2, B1, betaA, betaB, fA, fB, tolerance, action):
     tempfA = fA.fillna(0.5)
     tempfB = fB.fillna(0.5)
 
-    freq_similar1 = ((tempfA < minf) & (tempfB < minf)) | ((tempfA > maxf) & (tempfB > maxf))
+    freq_similar1 = ((tempfA < minf) & (tempfB < minf)) | (
+        (tempfA > maxf) & (tempfB > maxf)
+    )
     ambiguous[status1 & ~freq_similar1] = True
 
     B2[status1] = A2[status1]
 
     to_swap = A2 == B1
     jlog["switched_alleles"] = np.sum(to_swap)
-    freq_similar2 = ((tempfA < minf) & (tempfB > maxf)) | ((tempfA > maxf) & (tempfB < minf))
+    freq_similar2 = ((tempfA < minf) & (tempfB > maxf)) | (
+        (tempfA > maxf) & (tempfB < minf)
+    )
 
     ambiguous[to_swap & ~freq_similar2] = True
     B2[to_swap] = B1[to_swap]
@@ -275,24 +306,27 @@ def harmonise_21(SNP, A1, A2, B1, betaA, betaB, fA, fB, tolerance, action):
     betaB[to_swap] *= -1
     fB[to_swap] = 1 - fB[to_swap]
 
-    d = pd.DataFrame({
-        "SNP": SNP,
-        "effect_allele.exposure": A1,
-        "other_allele.exposure": A2,
-        "effect_allele.outcome": B1,
-        "other_allele.outcome": B2,
-        "beta.exposure": betaA,
-        "beta.outcome": betaB,
-        "eaf.exposure": fA,
-        "eaf.outcome": fB,
-        "remove": remove,
-        "palindromic": palindromic,
-        "ambiguous": ambiguous | palindromic
-    })
+    d = pd.DataFrame(
+        {
+            "SNP": SNP,
+            "effect_allele.exposure": A1,
+            "other_allele.exposure": A2,
+            "effect_allele.outcome": B1,
+            "other_allele.outcome": B2,
+            "beta.exposure": betaA,
+            "beta.outcome": betaB,
+            "eaf.exposure": fA,
+            "eaf.outcome": fB,
+            "remove": remove,
+            "palindromic": palindromic,
+            "ambiguous": ambiguous | palindromic,
+        }
+    )
 
     d.attrs["log"] = jlog
 
     return d
+
 
 def harmonise_12(SNP, A1, B1, B2, betaA, betaB, fA, fB, tolerance, action):
     if len(SNP) == 0:
@@ -321,7 +355,9 @@ def harmonise_12(SNP, A1, B1, B2, betaA, betaB, fA, fB, tolerance, action):
     tempfA = fA.fillna(0.5)
     tempfB = fB.fillna(0.5)
 
-    freq_similar1 = ((tempfA < minf) & (tempfB < minf)) | ((tempfA > maxf) & (tempfB > maxf))
+    freq_similar1 = ((tempfA < minf) & (tempfB < minf)) | (
+        (tempfA > maxf) & (tempfB > maxf)
+    )
     ambiguous[status1 & ~freq_similar1] = True
 
     A2[status1] = B2[status1]
@@ -329,7 +365,9 @@ def harmonise_12(SNP, A1, B1, B2, betaA, betaB, fA, fB, tolerance, action):
     to_swap = A1 == B2
     jlog["switched_alleles"] = np.sum(to_swap)
 
-    freq_similar2 = ((tempfA < minf) & (tempfB > maxf)) | ((tempfA > maxf) & (tempfB < maxf))
+    freq_similar2 = ((tempfA < minf) & (tempfB > maxf)) | (
+        (tempfA > maxf) & (tempfB < maxf)
+    )
     ambiguous[to_swap & ~freq_similar2] = True
     A2[to_swap] = A1[to_swap]
     A1[to_swap] = B1[to_swap]
@@ -351,24 +389,27 @@ def harmonise_12(SNP, A1, B1, B2, betaA, betaB, fA, fB, tolerance, action):
     betaB[to_swap] *= -1
     fB[to_swap] = 1 - fB[to_swap]
 
-    d = pd.DataFrame({
-        "SNP": SNP,
-        "effect_allele.exposure": A1,
-        "other_allele.exposure": A2,
-        "effect_allele.outcome": B1,
-        "other_allele.outcome": B2,
-        "beta.exposure": betaA,
-        "beta.outcome": betaB,
-        "eaf.exposure": fA,
-        "eaf.outcome": fB,
-        "remove": remove,
-        "palindromic": palindromic,
-        "ambiguous": ambiguous | palindromic
-    })
+    d = pd.DataFrame(
+        {
+            "SNP": SNP,
+            "effect_allele.exposure": A1,
+            "other_allele.exposure": A2,
+            "effect_allele.outcome": B1,
+            "other_allele.outcome": B2,
+            "beta.exposure": betaA,
+            "beta.outcome": betaB,
+            "eaf.exposure": fA,
+            "eaf.outcome": fB,
+            "remove": remove,
+            "palindromic": palindromic,
+            "ambiguous": ambiguous | palindromic,
+        }
+    )
 
     d.attrs["log"] = jlog
 
     return d
+
 
 def harmonise_11(SNP, A1, B1, betaA, betaB, fA, fB, tolerance, action):
     if len(SNP) == 0:
@@ -377,7 +418,7 @@ def harmonise_11(SNP, A1, B1, betaA, betaB, fA, fB, tolerance, action):
     jlog = {"alleles": "1-1"}
 
     n = len(A1)
-    A2 = pd.Series([None] * n) 
+    A2 = pd.Series([None] * n)
     B2 = pd.Series([None] * n)
     ambiguous = pd.Series([False] * n)
     palindromic = False
@@ -390,27 +431,32 @@ def harmonise_11(SNP, A1, B1, betaA, betaB, fA, fB, tolerance, action):
     tempfA = fA.fillna(0.5)
     tempfB = fB.fillna(0.5)
 
-    freq_similar1 = ((tempfA < minf) & (tempfB < minf)) | ((tempfA > maxf) & (tempfB > maxf))
+    freq_similar1 = ((tempfA < minf) & (tempfB < minf)) | (
+        (tempfA > maxf) & (tempfB > maxf)
+    )
     ambiguous[status1 & ~freq_similar1] = True
 
-    d = pd.DataFrame({
-        "SNP": SNP,
-        "effect_allele.exposure": A1,
-        "other_allele.exposure": A2,
-        "effect_allele.outcome": B1,
-        "other_allele.outcome": B2,
-        "beta.exposure": betaA,
-        "beta.outcome": betaB,
-        "eaf.exposure": fA,
-        "eaf.outcome": fB,
-        "remove": remove,
-        "palindromic": palindromic,
-        "ambiguous": ambiguous | palindromic
-    })
+    d = pd.DataFrame(
+        {
+            "SNP": SNP,
+            "effect_allele.exposure": A1,
+            "other_allele.exposure": A2,
+            "effect_allele.outcome": B1,
+            "other_allele.outcome": B2,
+            "beta.exposure": betaA,
+            "beta.outcome": betaB,
+            "eaf.exposure": fA,
+            "eaf.outcome": fB,
+            "remove": remove,
+            "palindromic": palindromic,
+            "ambiguous": ambiguous | palindromic,
+        }
+    )
 
     d.attrs["log"] = jlog
 
     return d
+
 
 def check_required_columns(df, dataset_type):
     required_columns = [
@@ -418,15 +464,18 @@ def check_required_columns(df, dataset_type):
         f"beta.{dataset_type}",
         f"se.{dataset_type}",
         f"effect_allele.{dataset_type}",
-        f"other_allele.{dataset_type}"
+        f"other_allele.{dataset_type}",
     ]
 
     missing_columns = [col for col in required_columns if col not in df.columns]
 
     if missing_columns:
-        raise ValueError(f"Missing required columns for {dataset_type}: {', '.join(missing_columns)}")
+        raise ValueError(
+            f"Missing required columns for {dataset_type}: {', '.join(missing_columns)}"
+        )
 
     print(f"All required columns for {dataset_type} are present.")
+
 
 def harmonise(dat, tolerance=0.08, action=2):
     dat["orig_SNP"] = dat["SNP"]
@@ -448,18 +497,74 @@ def harmonise(dat, tolerance=0.08, action=2):
     i12 = A1.notna() & A2.isna() & B1.notna() & B2.notna()
     i11 = A1.notna() & A2.isna() & B1.notna() & B2.isna()
 
-    d22 = harmonise_22(SNP[i22], A1[i22], A2[i22], B1[i22], B2[i22], betaA[i22], betaB[i22], fA[i22], fB[i22], tolerance, action)
-    d21 = harmonise_21(SNP[i21], A1[i21], A2[i21], B1[i21], betaA[i21], betaB[i21], fA[i21], fB[i21], tolerance, action)
-    d12 = harmonise_12(SNP[i12], A1[i12], B1[i12], B2[i12], betaA[i12], betaB[i12], fA[i12], fB[i12], tolerance, action)
-    d11 = harmonise_11(SNP[i11], A1[i11], B1[i11], betaA[i11], betaB[i11], fA[i11], fB[i11], tolerance, action)
+    d22 = harmonise_22(
+        SNP[i22],
+        A1[i22],
+        A2[i22],
+        B1[i22],
+        B2[i22],
+        betaA[i22],
+        betaB[i22],
+        fA[i22],
+        fB[i22],
+        tolerance,
+        action,
+    )
+    d21 = harmonise_21(
+        SNP[i21],
+        A1[i21],
+        A2[i21],
+        B1[i21],
+        betaA[i21],
+        betaB[i21],
+        fA[i21],
+        fB[i21],
+        tolerance,
+        action,
+    )
+    d12 = harmonise_12(
+        SNP[i12],
+        A1[i12],
+        B1[i12],
+        B2[i12],
+        betaA[i12],
+        betaB[i12],
+        fA[i12],
+        fB[i12],
+        tolerance,
+        action,
+    )
+    d11 = harmonise_11(
+        SNP[i11],
+        A1[i11],
+        B1[i11],
+        betaA[i11],
+        betaB[i11],
+        fA[i11],
+        fB[i11],
+        tolerance,
+        action,
+    )
 
     d = pd.concat([d21, d22, d12, d11], ignore_index=True)
 
-    d = d.merge(dat.drop(columns=["effect_allele.exposure", "other_allele.exposure", 
-                                  "effect_allele.outcome", "other_allele.outcome", 
-                                  "beta.exposure", "beta.outcome", "eaf.exposure", "eaf.outcome"]), 
-                on="SNP", how="left")
-    
+    d = d.merge(
+        dat.drop(
+            columns=[
+                "effect_allele.exposure",
+                "other_allele.exposure",
+                "effect_allele.outcome",
+                "other_allele.outcome",
+                "beta.exposure",
+                "beta.outcome",
+                "eaf.exposure",
+                "eaf.outcome",
+            ]
+        ),
+        on="SNP",
+        how="left",
+    )
+
     d["SNP"] = d["orig_SNP"]
     d = d.drop(columns=["orig_SNP"])
     d = d.sort_values(by=["id.outcome"])
@@ -472,19 +577,36 @@ def harmonise(dat, tolerance=0.08, action=2):
 
     if action == 3:
         d["mr_keep"] = ~(d["palindromic"] | d["remove"] | d["ambiguous"])
-        print("Removing the following SNPs for being palindromic:", d.loc[d["palindromic"], "SNP"].tolist())
-        print("Removing the following SNPs for incompatible alleles:", d.loc[d["remove"], "SNP"].tolist())
-        print("Removing the following SNPs for having incompatible allele frequencies:", d.loc[d["ambiguous"] & ~d["palindromic"], "SNP"].tolist())
+        print(
+            "Removing the following SNPs for being palindromic:",
+            d.loc[d["palindromic"], "SNP"].tolist(),
+        )
+        print(
+            "Removing the following SNPs for incompatible alleles:",
+            d.loc[d["remove"], "SNP"].tolist(),
+        )
+        print(
+            "Removing the following SNPs for having incompatible allele frequencies:",
+            d.loc[d["ambiguous"] & ~d["palindromic"], "SNP"].tolist(),
+        )
 
     elif action == 2:
         d["mr_keep"] = ~(d["remove"] | d["ambiguous"])
-        print("Removing the following SNPs for incompatible alleles:", d.loc[d["remove"], "SNP"].tolist())
-        print("Removing the following SNPs for being palindromic with intermediate allele frequencies:", d.loc[d["ambiguous"], "SNP"].tolist())
+        print(
+            "Removing the following SNPs for incompatible alleles:",
+            d.loc[d["remove"], "SNP"].tolist(),
+        )
+        print(
+            "Removing the following SNPs for being palindromic with intermediate allele frequencies:",
+            d.loc[d["ambiguous"], "SNP"].tolist(),
+        )
 
     elif action == 1:
         d["mr_keep"] = ~d["remove"]
-        print("Removing the following SNPs for incompatible alleles:", d.loc[d["remove"], "SNP"].tolist())
-
+        print(
+            "Removing the following SNPs for incompatible alleles:",
+            d.loc[d["remove"], "SNP"].tolist(),
+        )
 
     return d
 
@@ -493,7 +615,7 @@ def harmonise_data(exposure_dat, outcome_dat, action=2):
 
     if not all(x in [1, 2, 3] for x in np.atleast_1d(action)):
         raise ValueError("Action must be one of [1, 2, 3].")
-    
+
     check_required_columns(exposure_dat, "exposure")
     check_required_columns(outcome_dat, "outcome")
 
@@ -503,8 +625,11 @@ def harmonise_data(exposure_dat, outcome_dat, action=2):
             res_tab["id.exposure"] = res_tab["id.outcome_exposure"]
         elif "id.outcome" in exposure_dat.columns:
             res_tab = res_tab.merge(
-                exposure_dat[["SNP", "id.outcome"]].rename(columns={"id.outcome": "id.exposure"}),
-                on="SNP", how="left"
+                exposure_dat[["SNP", "id.outcome"]].rename(
+                    columns={"id.outcome": "id.exposure"}
+                ),
+                on="SNP",
+                how="left",
             )
         else:
             raise ValueError("Cannot find 'id.exposure' in merged dataframe.")
@@ -514,7 +639,9 @@ def harmonise_data(exposure_dat, outcome_dat, action=2):
     if isinstance(action, int):
         action = [action] * n_combinations
     elif len(action) != n_combinations:
-        raise ValueError("Action must be of length 1 or match the number of unique outcomes.")
+        raise ValueError(
+            "Action must be of length 1 or match the number of unique outcomes."
+        )
 
     res_tab = harmonise_cleanup_variables(res_tab)
 
@@ -525,15 +652,23 @@ def harmonise_data(exposure_dat, outcome_dat, action=2):
     fix_tab = []
     mr_cols = ["beta.exposure", "beta.outcome", "se.exposure", "se.outcome"]
 
-    for (_, group), current_action in zip(res_tab.groupby(["id.exposure", "id.outcome"]), action):
-        print(f"Harmonising {group['exposure'].iloc[0]} ({group['id.exposure'].iloc[0]}) "
-            f"and {group['outcome'].iloc[0]} ({group['id.outcome'].iloc[0]}) with action = {current_action}")
+    for (_, group), current_action in zip(
+        res_tab.groupby(["id.exposure", "id.outcome"]), action
+    ):
+        print(
+            f"Harmonising {group['exposure'].iloc[0]} ({group['id.exposure'].iloc[0]}) "
+            f"and {group['outcome'].iloc[0]} ({group['id.outcome'].iloc[0]}) with action = {current_action}"
+        )
 
         group = harmonise(group, 0.08, current_action)
 
-        candidate_variants = (res_tab["id.exposure"] == group["id.exposure"].iloc[0]).sum()
+        candidate_variants = (
+            res_tab["id.exposure"] == group["id.exposure"].iloc[0]
+        ).sum()
         variants_absent = candidate_variants - len(group)
-        proxy_variants = group["proxy.outcome"].sum() if "proxy.outcome" in group.columns else 0
+        proxy_variants = (
+            group["proxy.outcome"].sum() if "proxy.outcome" in group.columns else 0
+        )
 
         total_variants = len(group)
         total_variants_for_mr = group[mr_cols].notna().all(axis=1).sum()
@@ -543,21 +678,53 @@ def harmonise_data(exposure_dat, outcome_dat, action=2):
             "variants_absent_from_reference": variants_absent,
             "total_variants": total_variants,
             "total_variants_for_mr": total_variants_for_mr,
-            "proxy_variants": proxy_variants
+            "proxy_variants": proxy_variants,
         }
 
-        print(f"Log data for {group['id.exposure'].iloc[0]}-{group['id.outcome'].iloc[0]}: {log_data}")
+        print(
+            f"Log data for {group['id.exposure'].iloc[0]}-{group['id.outcome'].iloc[0]}: {log_data}"
+        )
 
         group["mr_keep"] = group["mr_keep"] & ~group[mr_cols].isnull().any(axis=1)
         fix_tab.append(group)
 
     columns_order = [
-        "SNP", "effect_allele.exposure", "other_allele.exposure", "effect_allele.outcome", "other_allele.outcome",
-        "beta.exposure", "beta.outcome", "eaf.exposure", "eaf.outcome", "remove", "palindromic", "ambiguous",
-        "id.outcome", "chr", "pos", "se.outcome", "samplesize.outcome", "pval.outcome", "outcome",
-        "originalname.outcome", "outcome.deprecated", "mr_keep.outcome", "data_source.outcome", "pval.exposure",
-        "samplesize.exposure", "chr.exposure", "se.exposure", "pos.exposure", "id.exposure", "exposure",
-        "mr_keep.exposure", "pval_origin.exposure", "data_source.exposure", "action", "SNP_index", "mr_keep"
+        "SNP",
+        "effect_allele.exposure",
+        "other_allele.exposure",
+        "effect_allele.outcome",
+        "other_allele.outcome",
+        "beta.exposure",
+        "beta.outcome",
+        "eaf.exposure",
+        "eaf.outcome",
+        "remove",
+        "palindromic",
+        "ambiguous",
+        "id.outcome",
+        "chr",
+        "pos",
+        "se.outcome",
+        "samplesize.outcome",
+        "pval.outcome",
+        "outcome",
+        "originalname.outcome",
+        "outcome.deprecated",
+        "mr_keep.outcome",
+        "data_source.outcome",
+        "pval.exposure",
+        "samplesize.exposure",
+        "chr.exposure",
+        "se.exposure",
+        "pos.exposure",
+        "id.exposure",
+        "exposure",
+        "mr_keep.exposure",
+        "pval_origin.exposure",
+        "data_source.exposure",
+        "action",
+        "SNP_index",
+        "mr_keep",
     ]
 
     harmonised_data = pd.concat(fix_tab, ignore_index=True)
@@ -566,8 +733,14 @@ def harmonise_data(exposure_dat, outcome_dat, action=2):
             harmonised_data[col] = pd.NA
 
     format_columns = [
-        "beta.exposure", "se.exposure", "pval.exposure", "eaf.exposure",
-        "beta.outcome", "se.outcome", "pval.outcome", "eaf.outcome"
+        "beta.exposure",
+        "se.exposure",
+        "pval.exposure",
+        "eaf.exposure",
+        "beta.outcome",
+        "se.outcome",
+        "pval.outcome",
+        "eaf.outcome",
     ]
 
     for col in format_columns:
@@ -577,6 +750,8 @@ def harmonise_data(exposure_dat, outcome_dat, action=2):
             )
 
     harmonised_data = harmonised_data[columns_order]
-    harmonised_data = harmonised_data.sort_values(by=["SNP", "id.outcome"], ascending=True)
+    harmonised_data = harmonised_data.sort_values(
+        by=["SNP", "id.outcome"], ascending=True
+    )
 
     return harmonised_data

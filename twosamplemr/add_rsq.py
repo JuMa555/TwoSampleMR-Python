@@ -1,20 +1,23 @@
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from scipy.stats import f
-from scipy.optimize import minimize_scalar
-from scipy.stats import linregress, chi2
-import matplotlib.pyplot as plt
 import seaborn as sns
+from scipy.optimize import minimize_scalar
+from scipy.stats import chi2, f, linregress
 
 
 def add_rsq(dat):
     dat = dat.copy()
 
     if "id.exposure" in dat.columns:
-        dat = dat.groupby("id.exposure", group_keys=False).apply(lambda x: add_rsq_one(x, "exposure"))
+        dat = dat.groupby("id.exposure", group_keys=False).apply(
+            lambda x: add_rsq_one(x, "exposure")
+        )
 
     if "id.outcome" in dat.columns:
-        dat = dat.groupby("id.outcome", group_keys=False).apply(lambda x: add_rsq_one(x, "outcome"))
+        dat = dat.groupby("id.outcome", group_keys=False).apply(
+            lambda x: add_rsq_one(x, "outcome")
+        )
 
     return dat.reset_index(drop=True)
 
@@ -28,12 +31,18 @@ def add_rsq_one(dat, what="exposure"):
         dat[unit_col] = np.nan
 
     if dat[what].dropna().nunique() != 1:
-        raise ValueError(f"Expected one unique value in '{what}', got: {dat[what].unique()}")
+        raise ValueError(
+            f"Expected one unique value in '{what}', got: {dat[what].unique()}"
+        )
 
     if dat[unit_col].dropna().nunique() > 1:
-        raise ValueError(f"Multiple units found in '{unit_col}': {dat[unit_col].unique()}")
+        raise ValueError(
+            f"Multiple units found in '{unit_col}': {dat[unit_col].unique()}"
+        )
     elif dat[unit_col].dropna().nunique() == 0:
-        print(f"Warning: All values in '{unit_col}' are missing; default handling may apply.")
+        print(
+            f"Warning: All values in '{unit_col}' are missing; default handling may apply."
+        )
 
     if rsq_col not in dat.columns:
         pval_col = f"pval.{what}"
@@ -43,7 +52,9 @@ def add_rsq_one(dat, what="exposure"):
             prevalence_col = f"prevalence.{what}"
             if prevalence_col not in dat.columns:
                 dat[prevalence_col] = 0.1
-                print(f"Warning: Assuming {what} prevalence of 0.1. You can add '{prevalence_col}' to override.")
+                print(
+                    f"Warning: Assuming {what} prevalence of 0.1. You can add '{prevalence_col}' to override."
+                )
 
             beta = dat[f"beta.{what}"]
             eaf = dat[f"eaf.{what}"]
@@ -51,27 +62,33 @@ def add_rsq_one(dat, what="exposure"):
             ncontrol = dat[f"ncontrol.{what}"]
             prevalence = dat[prevalence_col]
 
-            ind1 = beta.notna() & eaf.notna() & ncase.notna() & ncontrol.notna() & prevalence.notna()
+            ind1 = (
+                beta.notna()
+                & eaf.notna()
+                & ncase.notna()
+                & ncontrol.notna()
+                & prevalence.notna()
+            )
             dat[rsq_col] = np.nan
             if ind1.sum() > 0:
                 r = get_r_from_lor(
-                    beta[ind1],
-                    eaf[ind1],
-                    ncase[ind1],
-                    ncontrol[ind1],
-                    prevalence[ind1]
+                    beta[ind1], eaf[ind1], ncase[ind1], ncontrol[ind1], prevalence[ind1]
                 )
                 dat.loc[ind1, rsq_col] = r**2
-                dat.loc[ind1, f"effective_n.{what}"] = effective_n(ncase[ind1], ncontrol[ind1])
+                dat.loc[ind1, f"effective_n.{what}"] = effective_n(
+                    ncase[ind1], ncontrol[ind1]
+                )
             else:
                 print("Try adding metadata with add_metadata()")
 
-        elif dat[unit_col].astype(str).str.contains("SD", na=False).all() and dat[f"eaf.{what}"].notna().all():
+        elif (
+            dat[unit_col].astype(str).str.contains("SD", na=False).all()
+            and dat[f"eaf.{what}"].notna().all()
+        ):
             beta = dat[f"beta.{what}"]
             eaf = dat[f"eaf.{what}"]
             dat[rsq_col] = 2 * beta**2 * eaf * (1 - eaf)
             dat[f"effective_n.{what}"] = dat[f"samplesize.{what}"]
-
 
         else:
             beta = dat[f"beta.{what}"]
@@ -110,7 +127,7 @@ def get_r_from_pn_less_accurate(p, n):
 
 def test_r_from_pn():
     ns = [10, 100, 1000, 10000, 100000]
-    rsqs = 10**np.linspace(-4, -0.5, 30)
+    rsqs = 10 ** np.linspace(-4, -0.5, 30)
 
     results = []
 
@@ -124,28 +141,36 @@ def test_r_from_pn():
 
             y = x * np.sqrt(rsq) + y_noise * np.sqrt(1 - rsq)
 
-            rsq_emp = np.corrcoef(x, y)[0, 1]**2
+            rsq_emp = np.corrcoef(x, y)[0, 1] ** 2
             slope, intercept, r_value, pval, stderr = linregress(x, y)
 
             pval = max(pval, 1e-300)
 
-            rsq1 = get_r_from_pn_less_accurate(pval, n)**2
-            rsq2 = get_r_from_pn(pval, n)**2
+            rsq1 = get_r_from_pn_less_accurate(pval, n) ** 2
+            rsq2 = get_r_from_pn(pval, n) ** 2
 
-            results.append({
-                "n": n,
-                "rsq": rsq,
-                "rsq_emp": rsq_emp,
-                "pval": pval,
-                "rsq1": rsq1,
-                "rsq2": rsq2
-            })
+            results.append(
+                {
+                    "n": n,
+                    "rsq": rsq,
+                    "rsq_emp": rsq_emp,
+                    "pval": pval,
+                    "rsq1": rsq1,
+                    "rsq2": rsq2,
+                }
+            )
 
     df = pd.DataFrame(results)
-    df_long = df.melt(id_vars=["n", "rsq", "rsq_emp", "pval"], value_vars=["rsq1", "rsq2"],
-                      var_name="out", value_name="value")
+    df_long = df.melt(
+        id_vars=["n", "rsq", "rsq_emp", "pval"],
+        value_vars=["rsq1", "rsq2"],
+        var_name="out",
+        value_name="value",
+    )
 
-    g = sns.FacetGrid(df_long, col="n", col_wrap=3, height=4, sharex=False, sharey=False)
+    g = sns.FacetGrid(
+        df_long, col="n", col_wrap=3, height=4, sharex=False, sharey=False
+    )
     g.map_dataframe(sns.lineplot, x="rsq_emp", y="value", hue="out")
     for ax in g.axes.flat:
         ax.plot([1e-4, 1], [1e-4, 1], linestyle="dotted", color="grey")
@@ -185,7 +210,7 @@ def get_r_from_pn(p, n):
                 optim_get_p_from_rn,
                 bounds=(1e-6, 0.999),
                 args=(n[idx], p[idx]),
-                method="bounded"
+                method="bounded",
             )
             R2[idx] = opt.x if opt.success else np.nan
 
@@ -204,7 +229,9 @@ def compareNA(v1, v2):
     return v1 == v2
 
 
-def get_r_from_lor(lor, af, ncase, ncontrol, prevalence, model="logit", correction=False):
+def get_r_from_lor(
+    lor, af, ncase, ncontrol, prevalence, model="logit", correction=False
+):
     lor = np.asarray(lor)
     af = np.asarray(af)
     ncase = np.asarray(ncase)
@@ -232,12 +259,9 @@ def get_r_from_lor(lor, af, ncase, ncontrol, prevalence, model="logit", correcti
             raise ValueError("Model must be 'logit' or 'probit'.")
 
         pop_af = get_population_allele_frequency(
-            af[i],
-            ncase[i] / (ncase[i] + ncontrol[i]),
-            np.exp(lor[i]),
-            prevalence[i]
+            af[i], ncase[i] / (ncase[i] + ncontrol[i]), np.exp(lor[i]), prevalence[i]
         )
-        vg = lor[i]**2 * pop_af * (1 - pop_af)
+        vg = lor[i] ** 2 * pop_af * (1 - pop_af)
         r2 = vg / (vg + ve)
 
         if correction:
@@ -265,10 +289,7 @@ def contingency(af, prop, odds_ratio, eps=1e-15):
 
     matrices = []
     for zi in z:
-        m = np.array([
-            [zi, prop - zi],
-            [af - zi, 1 + zi - af - prop]
-        ])
+        m = np.array([[zi, prop - zi], [af - zi, 1 + zi - af - prop]])
         if np.all(m >= 0):
             matrices.append(m)
 

@@ -1,16 +1,17 @@
+import ieugwaspy as igp
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import ieugwaspy as igp
 import statsmodels.api as sm
-import matplotlib.pyplot as plt
-from sklearn.linear_model import LassoCV
 from scipy.stats import norm
+from sklearn.linear_model import LassoCV
 
-from instruments import extract_instruments
-from harmonise import harmonise_data
-from read_data import convert_outcome_to_exposure
-from query import extract_outcome_data
-from ld import clump_data
+from .harmonise import harmonise_data
+from .instruments import extract_instruments
+from .ld import clump_data
+from .query import extract_outcome_data
+from .read_data import convert_outcome_to_exposure
+
 
 def mv_extract_exposures(
     id_exposure,
@@ -23,11 +24,11 @@ def mv_extract_exposures(
     pval_threshold=5e-8,
     pop="EUR",
     plink_bin=None,
-    bfile=None
+    bfile=None,
 ):
     if len(id_exposure) <= 1:
         raise ValueError("More than one exposure ID is required.")
-    
+
     id_exposure = igp.backwards.legacy_ids(id_exposure)
 
     exposure_dat = extract_instruments(
@@ -36,7 +37,7 @@ def mv_extract_exposures(
         r2=clump_r2,
         kb=clump_kb,
         opengwas_jwt=opengwas_jwt,
-        force_server=force_server
+        force_server=force_server,
     )
 
     temp = exposure_dat.copy()
@@ -51,16 +52,12 @@ def mv_extract_exposures(
         clump_kb=clump_kb,
         pop=pop,
         plink_bin=plink_bin,
-        bfile=bfile
+        bfile=bfile,
     )
 
     exposure_dat = exposure_dat[exposure_dat["SNP"].isin(temp["SNP"])]
 
-    d1 = extract_outcome_data(
-        exposure_dat["SNP"].tolist(),
-        id_exposure,
-        proxies=True
-    )
+    d1 = extract_outcome_data(exposure_dat["SNP"].tolist(), id_exposure, proxies=True)
 
     if len(d1["id.outcome"].unique()) != len(set(id_exposure)):
         raise ValueError("Mismatch in outcome IDs.")
@@ -76,25 +73,49 @@ def mv_extract_exposures(
     keepsnps = snp_counts[snp_counts == len(id_exposure) - 1].index
     d = d[d["SNP"].isin(keepsnps)]
 
-    dh1 = d[d["id.outcome"] == d["id.outcome"].iloc[0]][[
-        "SNP", "exposure", "id.exposure", "effect_allele.exposure", "other_allele.exposure",
-        "eaf.exposure", "beta.exposure", "se.exposure", "pval.exposure"
-    ]]
-    dh2 = d[[
-        "SNP", "outcome", "id.outcome", "effect_allele.outcome", "other_allele.outcome",
-        "eaf.outcome", "beta.outcome", "se.outcome", "pval.outcome"
-    ]].rename(columns=lambda x: x.replace("outcome", "exposure"))
+    dh1 = d[d["id.outcome"] == d["id.outcome"].iloc[0]][
+        [
+            "SNP",
+            "exposure",
+            "id.exposure",
+            "effect_allele.exposure",
+            "other_allele.exposure",
+            "eaf.exposure",
+            "beta.exposure",
+            "se.exposure",
+            "pval.exposure",
+        ]
+    ]
+    dh2 = d[
+        [
+            "SNP",
+            "outcome",
+            "id.outcome",
+            "effect_allele.outcome",
+            "other_allele.outcome",
+            "eaf.outcome",
+            "beta.outcome",
+            "se.outcome",
+            "pval.outcome",
+        ]
+    ].rename(columns=lambda x: x.replace("outcome", "exposure"))
 
     dh = pd.concat([dh1, dh2], ignore_index=True)
     dh = dh.sort_values(by=["SNP", "exposure"], ascending=True)
     return dh
 
 
-def mv_harmonise_data(exposure_dat: pd.DataFrame, outcome_dat: pd.DataFrame, harmonise_strictness=2):
+def mv_harmonise_data(
+    exposure_dat: pd.DataFrame, outcome_dat: pd.DataFrame, harmonise_strictness=2
+):
     required_cols = [
-        "SNP", "id.exposure", "exposure",
-        "effect_allele.exposure", "beta.exposure",
-        "se.exposure", "pval.exposure"
+        "SNP",
+        "id.exposure",
+        "exposure",
+        "effect_allele.exposure",
+        "beta.exposure",
+        "se.exposure",
+        "pval.exposure",
     ]
     if not all(col in exposure_dat.columns for col in required_cols):
         raise ValueError("Exposure dataset does not contain required columns.")
@@ -111,7 +132,7 @@ def mv_harmonise_data(exposure_dat: pd.DataFrame, outcome_dat: pd.DataFrame, har
     harmonised = harmonise_data(
         exposure_dat[exposure_dat["id.exposure"] == first_exposure_id],
         outcome_dat,
-        action=harmonise_strictness
+        action=harmonise_strictness,
     )
 
     harmonised = harmonised[harmonised["mr_keep"]]
@@ -147,11 +168,13 @@ def mv_harmonise_data(exposure_dat: pd.DataFrame, outcome_dat: pd.DataFrame, har
         "outcome_pval": outcome_pval,
         "outcome_se": outcome_se,
         "expname": expname,
-        "outname": outname
+        "outname": outname,
     }
 
 
-def mv_residual(mvdat, intercept=False, instrument_specific=False, pval_threshold=5e-8, plots=False):
+def mv_residual(
+    mvdat, intercept=False, instrument_specific=False, pval_threshold=5e-8, plots=False
+):
     beta_outcome = mvdat["outcome_beta"]
     beta_exposure = mvdat["exposure_beta"]
     pval_exposure = mvdat["exposure_pval"]
@@ -181,7 +204,9 @@ def mv_residual(mvdat, intercept=False, instrument_specific=False, pval_threshol
             if intercept:
                 model1 = sm.OLS(y_sel, sm.add_constant(X_sel)).fit()
                 residuals = model1.resid
-                model2 = sm.OLS(residuals, sm.add_constant(beta_exposure[index, i])).fit()
+                model2 = sm.OLS(
+                    residuals, sm.add_constant(beta_exposure[index, i])
+                ).fit()
             else:
                 model1 = sm.OLS(y_sel, X_sel).fit()
                 residuals = model1.resid
@@ -216,10 +241,9 @@ def mv_residual(mvdat, intercept=False, instrument_specific=False, pval_threshol
         nsnp[i] = np.sum(index)
 
         if plots:
-            d = pd.DataFrame({
-                "outcome": marginal_outcome[:, i],
-                "exposure": beta_exposure[:, i]
-            })
+            d = pd.DataFrame(
+                {"outcome": marginal_outcome[:, i], "exposure": beta_exposure[:, i]}
+            )
             flip = np.sign(d["exposure"]) == -1
             d.loc[flip, "outcome"] *= -1
             d["exposure"] = np.abs(d["exposure"])
@@ -231,15 +255,17 @@ def mv_residual(mvdat, intercept=False, instrument_specific=False, pval_threshol
             ax.set_ylabel("Marginal SNP effect on outcome")
             plot_list.append(fig)
 
-    result = pd.DataFrame({
-        "id.exposure": nom,
-        "id.outcome": mvdat["outname"]["id.outcome"].iloc[0],
-        "outcome": mvdat["outname"]["outcome"].iloc[0],
-        "nsnp": nsnp,
-        "b": effs,
-        "se": se,
-        "pval": pval
-    })
+    result = pd.DataFrame(
+        {
+            "id.exposure": nom,
+            "id.outcome": mvdat["outname"]["id.outcome"].iloc[0],
+            "outcome": mvdat["outname"]["outcome"].iloc[0],
+            "nsnp": nsnp,
+            "b": effs,
+            "se": se,
+            "pval": pval,
+        }
+    )
 
     result = mvdat["expname"].merge(result, on="id.exposure")
     out = {"result": result, "marginal_outcome": marginal_outcome}
@@ -249,11 +275,13 @@ def mv_residual(mvdat, intercept=False, instrument_specific=False, pval_threshol
     return out
 
 
-def mv_multiple(mvdat, intercept=False, instrument_specific=False, pval_threshold=5e-8, plots=False):
+def mv_multiple(
+    mvdat, intercept=False, instrument_specific=False, pval_threshold=5e-8, plots=False
+):
     beta_outcome = mvdat["outcome_beta"]
     beta_exposure = mvdat["exposure_beta"]
     pval_exposure = mvdat["exposure_pval"]
-    w = 1 / mvdat["outcome_se"]**2
+    w = 1 / mvdat["outcome_se"] ** 2
 
     nexp = beta_exposure.shape[1]
     effs = np.full(nexp, np.nan)
@@ -294,10 +322,7 @@ def mv_multiple(mvdat, intercept=False, instrument_specific=False, pval_threshol
         nsnp[i] = np.sum(index)
 
         if plots:
-            d = pd.DataFrame({
-                "outcome": beta_outcome,
-                "exposure": beta_exposure[:, i]
-            })
+            d = pd.DataFrame({"outcome": beta_outcome, "exposure": beta_exposure[:, i]})
             flip = np.sign(d["exposure"]) == -1
             d.loc[flip, "outcome"] *= -1
             d["exposure"] = np.abs(d["exposure"])
@@ -309,15 +334,17 @@ def mv_multiple(mvdat, intercept=False, instrument_specific=False, pval_threshol
             ax.set_ylabel("Marginal SNP effect on outcome")
             plot_list.append(fig)
 
-    result = pd.DataFrame({
-        "id.exposure": nom,
-        "id.outcome": mvdat["outname"]["id.outcome"].iloc[0],
-        "outcome": mvdat["outname"]["outcome"].iloc[0],
-        "nsnp": nsnp,
-        "b": effs,
-        "se": se,
-        "pval": pval
-    })
+    result = pd.DataFrame(
+        {
+            "id.exposure": nom,
+            "id.outcome": mvdat["outname"]["id.outcome"].iloc[0],
+            "outcome": mvdat["outname"]["outcome"].iloc[0],
+            "nsnp": nsnp,
+            "b": effs,
+            "se": se,
+            "pval": pval,
+        }
+    )
 
     result = mvdat["expname"].merge(result, on="id.exposure")
     out = {"result": result}
@@ -351,18 +378,19 @@ def mv_basic(mvdat, pval_threshold=5e-8, plots=True):
         model_resid = sm.OLS(beta_outcome, sm.add_constant(X_other)).fit()
         marginal_outcome[:, i] = model_resid.resid
 
-        model = sm.OLS(marginal_outcome[index, i], sm.add_constant(beta_exposure[index, i])).fit()
-        
+        model = sm.OLS(
+            marginal_outcome[index, i], sm.add_constant(beta_exposure[index, i])
+        ).fit()
+
         effs[i] = model.params[1]
         se[i] = model.bse[1]
         pval[i] = 2 * norm.sf(abs(effs[i] / se[i]))
         nsnp[i] = np.sum(index)
 
         if plots:
-            d = pd.DataFrame({
-                "outcome": marginal_outcome[:, i],
-                "exposure": beta_exposure[:, i]
-            })
+            d = pd.DataFrame(
+                {"outcome": marginal_outcome[:, i], "exposure": beta_exposure[:, i]}
+            )
             flip = np.sign(d["exposure"]) == -1
             d.loc[flip, "outcome"] *= -1
             d["exposure"] = np.abs(d["exposure"])
@@ -374,15 +402,17 @@ def mv_basic(mvdat, pval_threshold=5e-8, plots=True):
             ax.set_ylabel("Marginal SNP effect on outcome")
             plot_list.append(fig)
 
-    result = pd.DataFrame({
-        "id.exposure": nom,
-        "id.outcome": mvdat["outname"]["id.outcome"].iloc[0],
-        "outcome": mvdat["outname"]["outcome"].iloc[0],
-        "nsnp": nsnp,
-        "b": effs,
-        "se": se,
-        "pval": pval
-    })
+    result = pd.DataFrame(
+        {
+            "id.exposure": nom,
+            "id.outcome": mvdat["outname"]["id.outcome"].iloc[0],
+            "outcome": mvdat["outname"]["outcome"].iloc[0],
+            "nsnp": nsnp,
+            "b": effs,
+            "se": se,
+            "pval": pval,
+        }
+    )
 
     result = mvdat["expname"].merge(result, on="id.exposure")
 
@@ -397,7 +427,7 @@ def mv_ivw(mvdat, pval_threshold=5e-8, plots=True):
     beta_outcome = mvdat["outcome_beta"]
     beta_exposure = mvdat["exposure_beta"]
     pval_exposure = mvdat["exposure_pval"]
-    w = 1 / mvdat["outcome_se"]**2
+    w = 1 / mvdat["outcome_se"] ** 2
 
     nexp = beta_exposure.shape[1]
     effs = np.full(nexp, np.nan)
@@ -425,10 +455,7 @@ def mv_ivw(mvdat, pval_threshold=5e-8, plots=True):
         nsnp[i] = np.sum(index)
 
         if plots:
-            d = pd.DataFrame({
-                "outcome": beta_outcome,
-                "exposure": beta_exposure[:, i]
-            })
+            d = pd.DataFrame({"outcome": beta_outcome, "exposure": beta_exposure[:, i]})
             flip = np.sign(d["exposure"]) == -1
             d.loc[flip, "outcome"] *= -1
             d["exposure"] = np.abs(d["exposure"])
@@ -440,15 +467,17 @@ def mv_ivw(mvdat, pval_threshold=5e-8, plots=True):
             ax.set_ylabel("Marginal SNP effect on outcome")
             plot_list.append(fig)
 
-    result = pd.DataFrame({
-        "id.exposure": nom,
-        "id.outcome": mvdat["outname"]["id.outcome"].iloc[0],
-        "outcome": mvdat["outname"]["outcome"].iloc[0],
-        "nsnp": nsnp,
-        "b": effs,
-        "se": se,
-        "pval": pval
-    })
+    result = pd.DataFrame(
+        {
+            "id.exposure": nom,
+            "id.outcome": mvdat["outname"]["id.outcome"].iloc[0],
+            "outcome": mvdat["outname"]["outcome"].iloc[0],
+            "nsnp": nsnp,
+            "b": effs,
+            "se": se,
+            "pval": pval,
+        }
+    )
 
     result = mvdat["expname"].merge(result, on="id.exposure")
 
@@ -458,12 +487,13 @@ def mv_ivw(mvdat, pval_threshold=5e-8, plots=True):
 
     return out
 
+
 def mv_lasso_feature_selection(mvdat):
     print("Performing feature selection")
-    
+
     X = mvdat["exposure_beta"]
     y = mvdat["outcome_beta"]
-    sample_weight = 1 / mvdat["outcome_se"]**2
+    sample_weight = 1 / mvdat["outcome_se"] ** 2
 
     model = LassoCV(cv=10, fit_intercept=False).fit(X, y, sample_weight=sample_weight)
 
@@ -471,25 +501,52 @@ def mv_lasso_feature_selection(mvdat):
     selected = coefs != 0
     selected_names = mvdat["expname"]["id.exposure"].values[selected]
 
-    d = pd.DataFrame({
-        "exposure": selected_names,
-        "b": coefs[selected]
-    })
+    d = pd.DataFrame({"exposure": selected_names, "b": coefs[selected]})
 
     return d
 
 
-def mv_subset(mvdat, features=None, intercept=False, instrument_specific=False, pval_threshold=5e-8, plots=False):
+def mv_subset(
+    mvdat,
+    features=None,
+    intercept=False,
+    instrument_specific=False,
+    pval_threshold=5e-8,
+    plots=False,
+):
     if features is None:
         features = mv_lasso_feature_selection(mvdat)
 
     selected_exposures = features["exposure"].values
 
-    mvdat["exposure_beta"] = mvdat["exposure_beta"][:, [i for i, col in enumerate(mvdat["expname"]["id.exposure"].values) if col in selected_exposures]]
-    mvdat["exposure_se"] = mvdat["exposure_se"][:, [i for i, col in enumerate(mvdat["expname"]["id.exposure"].values) if col in selected_exposures]]
-    mvdat["exposure_pval"] = mvdat["exposure_pval"][:, [i for i, col in enumerate(mvdat["expname"]["id.exposure"].values) if col in selected_exposures]]
+    mvdat["exposure_beta"] = mvdat["exposure_beta"][
+        :,
+        [
+            i
+            for i, col in enumerate(mvdat["expname"]["id.exposure"].values)
+            if col in selected_exposures
+        ],
+    ]
+    mvdat["exposure_se"] = mvdat["exposure_se"][
+        :,
+        [
+            i
+            for i, col in enumerate(mvdat["expname"]["id.exposure"].values)
+            if col in selected_exposures
+        ],
+    ]
+    mvdat["exposure_pval"] = mvdat["exposure_pval"][
+        :,
+        [
+            i
+            for i, col in enumerate(mvdat["expname"]["id.exposure"].values)
+            if col in selected_exposures
+        ],
+    ]
 
-    mvdat["expname"] = mvdat["expname"][mvdat["expname"]["id.exposure"].isin(selected_exposures)].reset_index(drop=True)
+    mvdat["expname"] = mvdat["expname"][
+        mvdat["expname"]["id.exposure"].isin(selected_exposures)
+    ].reset_index(drop=True)
 
     instruments = np.any(mvdat["exposure_pval"] < pval_threshold, axis=1)
     if np.sum(instruments) <= len(selected_exposures):
@@ -507,5 +564,5 @@ def mv_subset(mvdat, features=None, intercept=False, instrument_specific=False, 
         intercept=intercept,
         instrument_specific=instrument_specific,
         pval_threshold=pval_threshold,
-        plots=plots
+        plots=plots,
     )

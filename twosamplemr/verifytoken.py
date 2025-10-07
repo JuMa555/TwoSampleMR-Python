@@ -1,13 +1,16 @@
+import json
 import os
+
+import ieugwaspy as igp
 import requests
 from dotenv import load_dotenv
-import ieugwaspy as igp
-import json
 
 
 def get_opengwas_jwt():
     if not os.path.exists(".ieugwaspy.json"):
-        print("JWT token not found in .ieugwaspy.json. Running ieugwaspy.get_jwt() to set up authentication.")
+        print(
+            "JWT token not found in .ieugwaspy.json. Running ieugwaspy.get_jwt() to set up authentication."
+        )
         igp.get_jwt()
 
     with open(".ieugwaspy.json", "r") as f:
@@ -32,9 +35,13 @@ def get_user_data():
     if response.status_code == 200:
         return response.json()
     elif response.status_code == 401:
-        raise ValueError("Unauthorized: Your token is invalid or expired. Set new token in .env file.")
+        raise ValueError(
+            "Unauthorized: Your token is invalid or expired. Set new token in .env file."
+        )
     elif response.status_code == 404:
-        raise ValueError("Endpoint not found: Ensure you are using the correct API URL.")
+        raise ValueError(
+            "Endpoint not found: Ensure you are using the correct API URL."
+        )
     else:
         raise ValueError(f"Unexpected error: {response.status_code} {response.text}")
 

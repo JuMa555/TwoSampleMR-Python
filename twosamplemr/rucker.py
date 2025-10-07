@@ -1,17 +1,19 @@
-import pandas as pd
-import numpy as np
-from scipy.stats import chi2, norm, t
-import statsmodels.api as sm
 import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
 import seaborn as sns
-from mr import default_parameters
+import statsmodels.api as sm
+from scipy.stats import chi2, norm, t
+
+from .mr import default_parameters
+
 
 def isq(y, s):
     k = len(y)
     w = 1 / s**2
     sum_w = np.sum(w)
     mu_hat = np.sum(y * w) / sum_w
-    Q = np.sum(w * (y - mu_hat)**2)
+    Q = np.sum(w * (y - mu_hat) ** 2)
     Isq = (Q - (k - 1)) / Q if Q != 0 else 0
     return max(0, Isq)
 
@@ -47,8 +49,8 @@ def PM(y, s, alpha=0.1):
             sum_w = np.sum(w)
             w2 = w**2
             yW = np.sum(y * w) / sum_w
-            Q1 = np.sum(w * (y - yW)**2)
-            Q2 = np.sum(w2 * (y - yW)**2)
+            Q1 = np.sum(w * (y - yW) ** 2)
+            Q2 = np.sum(w2 * (y - yW) ** 2)
             Fstat = Q1 - q
             delta = Fstat / Q2 if Q2 != 0 else 0
             tausq += delta
@@ -65,8 +67,9 @@ def PM(y, s, alpha=0.1):
         "muhat": mu_list,
         "Isq": isq_list,
         "CI": CI,
-        "quant": quant
+        "quant": quant,
     }
+
 
 def mr_rucker(dat, parameters=None):
     if parameters is None:
@@ -187,17 +190,19 @@ def mr_rucker_internal(dat, parameters=None):
 
     zscore = norm.ppf(1 - alpha / 2)
 
-    results = pd.DataFrame({
-        "Method": [
-            "IVW fixed effects",
-            "IVW random effects",
-            "Egger fixed effects",
-            "Egger random effects"
-        ],
-        "nsnp": nsnp,
-        "Estimate": [b_ivw_fe, b_ivw_re, b1_egger_fe, b1_egger_re],
-        "SE": [se_ivw_fe, se_ivw_re, se1_egger_fe, se1_egger_re]
-    })
+    results = pd.DataFrame(
+        {
+            "Method": [
+                "IVW fixed effects",
+                "IVW random effects",
+                "Egger fixed effects",
+                "Egger random effects",
+            ],
+            "nsnp": nsnp,
+            "Estimate": [b_ivw_fe, b_ivw_re, b1_egger_fe, b1_egger_re],
+            "SE": [se_ivw_fe, se_ivw_re, se1_egger_fe, se1_egger_re],
+        }
+    )
     results["CI_low"] = results["Estimate"] - zscore * results["SE"]
     results["CI_upp"] = results["Estimate"] + zscore * results["SE"]
     results["P"] = [pval_ivw_fe, pval_ivw_re, pval1_egger_fe, pval1_egger_re]
@@ -205,18 +210,22 @@ def mr_rucker_internal(dat, parameters=None):
     Qdiff = max(0, Q_ivw - Q_egger)
     Qdiff_p = chi2.sf(Qdiff, df=1)
 
-    Q = pd.DataFrame({
-        "Method": ["Q_ivw", "Q_egger", "Q_diff"],
-        "Q": [Q_ivw, Q_egger, Qdiff],
-        "df": [Q_df_ivw, Q_df_egger, 1],
-        "P": [Q_pval_ivw, Q_pval_egger, Qdiff_p]
-    })
+    Q = pd.DataFrame(
+        {
+            "Method": ["Q_ivw", "Q_egger", "Q_diff"],
+            "Q": [Q_ivw, Q_egger, Qdiff],
+            "df": [Q_df_ivw, Q_df_egger, 1],
+            "P": [Q_pval_ivw, Q_pval_egger, Qdiff_p],
+        }
+    )
 
-    intercept = pd.DataFrame({
-        "Method": ["Egger fixed effects", "Egger random effects"],
-        "Estimate": [b0_egger_fe, b0_egger_fe],
-        "SE": [se0_egger_fe, se0_egger_re]
-    })
+    intercept = pd.DataFrame(
+        {
+            "Method": ["Egger fixed effects", "Egger random effects"],
+            "Estimate": [b0_egger_fe, b0_egger_fe],
+            "SE": [se0_egger_fe, se0_egger_re],
+        }
+    )
     intercept["CI_low"] = intercept["Estimate"] - zscore * intercept["SE"]
     intercept["CI_upp"] = intercept["Estimate"] + zscore * intercept["SE"]
     intercept["P"] = [pval0_egger_fe, pval0_egger_re]
@@ -229,12 +238,16 @@ def mr_rucker_internal(dat, parameters=None):
     else:
         res = "A"
 
-    selected = results[results["Method"].str.contains({
-        "A": "IVW fixed",
-        "B": "IVW random",
-        "C": "Egger fixed",
-        "D": "Egger random"
-    }[res])]
+    selected = results[
+        results["Method"].str.contains(
+            {
+                "A": "IVW fixed",
+                "B": "IVW random",
+                "C": "Egger fixed",
+                "D": "Egger random",
+            }[res]
+        )
+    ]
     selected = selected.copy()
     selected["Method"] = "Rucker"
 
@@ -252,7 +265,7 @@ def mr_rucker_internal(dat, parameters=None):
         "selected": selected,
         "cooksdistance": cooksdistance,
         "lmod_ivw": sm.OLS(y, x).fit(),
-        "lmod_egger": sm.OLS(y, X_egger).fit()
+        "lmod_egger": sm.OLS(y, X_egger).fit(),
     }
 
 
@@ -272,44 +285,64 @@ def mr_rucker_bootstrap(dat, parameters=None):
     l = []
 
     for _ in range(nboot):
-        dat2["beta.exposure"] = np.random.normal(dat["beta.exposure"], dat["se.exposure"])
+        dat2["beta.exposure"] = np.random.normal(
+            dat["beta.exposure"], dat["se.exposure"]
+        )
         dat2["beta.outcome"] = np.random.normal(dat["beta.outcome"], dat["se.outcome"])
         l.append(mr_rucker_internal(dat2, parameters))
 
-    modsel = pd.concat([r["selected"].assign(model=r["res"]) for r in l], ignore_index=True)
+    modsel = pd.concat(
+        [r["selected"].assign(model=r["res"]) for r in l], ignore_index=True
+    )
 
-    bootstrap = pd.DataFrame({
-        "Q": [rucker["Q"]["Q"].iloc[0]] + [r["Q"]["Q"].iloc[0] for r in l],
-        "Qdash": [rucker["Q"]["Q"].iloc[1]] + [r["Q"]["Q"].iloc[1] for r in l],
-        "model": [rucker["res"]] + [r["res"] for r in l],
-        "i": ["Full"] + ["Bootstrap"] * nboot
-    })
+    bootstrap = pd.DataFrame(
+        {
+            "Q": [rucker["Q"]["Q"].iloc[0]] + [r["Q"]["Q"].iloc[0] for r in l],
+            "Qdash": [rucker["Q"]["Q"].iloc[1]] + [r["Q"]["Q"].iloc[1] for r in l],
+            "model": [rucker["res"]] + [r["res"] for r in l],
+            "i": ["Full"] + ["Bootstrap"] * nboot,
+        }
+    )
 
     rucker_point = rucker["selected"].copy()
     rucker_point["Method"] = "Rucker point estimate"
 
-    rucker_median = pd.DataFrame([{
-        "Method": "Rucker median",
-        "nsnp": nsnp,
-        "Estimate": modsel["Estimate"].median(),
-        "SE": modsel["Estimate"].mad(),
-        "CI_low": modsel["Estimate"].quantile(0.025),
-        "CI_upp": modsel["Estimate"].quantile(0.975)
-    }])
-    rucker_median["P"] = 2 * t.sf(np.abs(rucker_median["Estimate"] / rucker_median["SE"]), df=nsnp - 1)
+    rucker_median = pd.DataFrame(
+        [
+            {
+                "Method": "Rucker median",
+                "nsnp": nsnp,
+                "Estimate": modsel["Estimate"].median(),
+                "SE": modsel["Estimate"].mad(),
+                "CI_low": modsel["Estimate"].quantile(0.025),
+                "CI_upp": modsel["Estimate"].quantile(0.975),
+            }
+        ]
+    )
+    rucker_median["P"] = 2 * t.sf(
+        np.abs(rucker_median["Estimate"] / rucker_median["SE"]), df=nsnp - 1
+    )
 
-    rucker_mean = pd.DataFrame([{
-        "Method": "Rucker mean",
-        "nsnp": nsnp,
-        "Estimate": modsel["Estimate"].mean(),
-        "SE": modsel["Estimate"].std()
-    }])
+    rucker_mean = pd.DataFrame(
+        [
+            {
+                "Method": "Rucker mean",
+                "nsnp": nsnp,
+                "Estimate": modsel["Estimate"].mean(),
+                "SE": modsel["Estimate"].std(),
+            }
+        ]
+    )
     qz = norm.ppf(1 - Qthresh / 2)
     rucker_mean["CI_low"] = rucker_mean["Estimate"] - qz * rucker_mean["SE"]
     rucker_mean["CI_upp"] = rucker_mean["Estimate"] + qz * rucker_mean["SE"]
-    rucker_mean["P"] = 2 * t.sf(np.abs(rucker_mean["Estimate"] / rucker_mean["SE"]), df=nsnp - 1)
+    rucker_mean["P"] = 2 * t.sf(
+        np.abs(rucker_mean["Estimate"] / rucker_mean["SE"]), df=nsnp - 1
+    )
 
-    res = pd.concat([rucker["rucker"], rucker_point, rucker_mean, rucker_median], ignore_index=True)
+    res = pd.concat(
+        [rucker["rucker"], rucker_point, rucker_mean, rucker_median], ignore_index=True
+    )
 
     plt.figure(figsize=(6, 6))
     sns.scatterplot(data=bootstrap, x="Q", y="Qdash", hue="model", style="i")
@@ -327,7 +360,6 @@ def mr_rucker_bootstrap(dat, parameters=None):
     plt.legend()
     q_plot = plt.gcf()
     plt.close()
-
 
     modsel["model_name"] = "IVW"
     modsel.loc[modsel["model"].isin(["C", "D"]), "model_name"] = "Egger"
@@ -349,7 +381,7 @@ def mr_rucker_bootstrap(dat, parameters=None):
         "bootstrap_estimates": modsel,
         "boostrap_q": bootstrap,
         "q_plot": q_plot,
-        "e_plot": e_plot
+        "e_plot": e_plot,
     }
 
 
@@ -406,7 +438,7 @@ def mr_rucker_jackknife_internal(dat, parameters=None):
             "bootstrap_estimates": None,
             "boostrap_q": None,
             "q_plot": None,
-            "e_plot": None
+            "e_plot": None,
         }
 
     l = []
@@ -414,37 +446,55 @@ def mr_rucker_jackknife_internal(dat, parameters=None):
         dat2 = dat.sample(n=nsnp, replace=True)
         l.append(mr_rucker_internal(dat2, parameters))
 
-    modsel = pd.concat([r["selected"].assign(model=r["res"]) for r in l], ignore_index=True)
+    modsel = pd.concat(
+        [r["selected"].assign(model=r["res"]) for r in l], ignore_index=True
+    )
 
-    bootstrap = pd.DataFrame({
-        "Q": [rucker["Q"]["Q"].iloc[0]] + [r["Q"]["Q"].iloc[0] for r in l],
-        "Qdash": [rucker["Q"]["Q"].iloc[1]] + [r["Q"]["Q"].iloc[1] for r in l],
-        "model": [rucker["res"]] + [r["res"] for r in l],
-        "i": ["Full"] + ["Jackknife"] * nboot
-    })
+    bootstrap = pd.DataFrame(
+        {
+            "Q": [rucker["Q"]["Q"].iloc[0]] + [r["Q"]["Q"].iloc[0] for r in l],
+            "Qdash": [rucker["Q"]["Q"].iloc[1]] + [r["Q"]["Q"].iloc[1] for r in l],
+            "model": [rucker["res"]] + [r["res"] for r in l],
+            "i": ["Full"] + ["Jackknife"] * nboot,
+        }
+    )
 
-    rucker_median = pd.DataFrame([{
-        "Method": "Rucker median (JK)",
-        "nsnp": nsnp,
-        "Estimate": modsel["Estimate"].median(),
-        "SE": modsel["Estimate"].mad(),
-        "CI_low": modsel["Estimate"].quantile(0.025),
-        "CI_upp": modsel["Estimate"].quantile(0.975)
-    }])
-    rucker_median["P"] = 2 * t.sf(np.abs(rucker_median["Estimate"] / rucker_median["SE"]), df=nsnp - 1)
+    rucker_median = pd.DataFrame(
+        [
+            {
+                "Method": "Rucker median (JK)",
+                "nsnp": nsnp,
+                "Estimate": modsel["Estimate"].median(),
+                "SE": modsel["Estimate"].mad(),
+                "CI_low": modsel["Estimate"].quantile(0.025),
+                "CI_upp": modsel["Estimate"].quantile(0.975),
+            }
+        ]
+    )
+    rucker_median["P"] = 2 * t.sf(
+        np.abs(rucker_median["Estimate"] / rucker_median["SE"]), df=nsnp - 1
+    )
 
-    rucker_mean = pd.DataFrame([{
-        "Method": "Rucker mean (JK)",
-        "nsnp": nsnp,
-        "Estimate": modsel["Estimate"].mean(),
-        "SE": modsel["Estimate"].std()
-    }])
+    rucker_mean = pd.DataFrame(
+        [
+            {
+                "Method": "Rucker mean (JK)",
+                "nsnp": nsnp,
+                "Estimate": modsel["Estimate"].mean(),
+                "SE": modsel["Estimate"].std(),
+            }
+        ]
+    )
     qz = norm.ppf(1 - Qthresh / 2)
     rucker_mean["CI_low"] = rucker_mean["Estimate"] - qz * rucker_mean["SE"]
     rucker_mean["CI_upp"] = rucker_mean["Estimate"] + qz * rucker_mean["SE"]
-    rucker_mean["P"] = 2 * t.sf(np.abs(rucker_mean["Estimate"] / rucker_mean["SE"]), df=nsnp - 1)
+    rucker_mean["P"] = 2 * t.sf(
+        np.abs(rucker_mean["Estimate"] / rucker_mean["SE"]), df=nsnp - 1
+    )
 
-    res = pd.concat([rucker["rucker"], rucker_point, rucker_mean, rucker_median], ignore_index=True)
+    res = pd.concat(
+        [rucker["rucker"], rucker_point, rucker_mean, rucker_median], ignore_index=True
+    )
 
     plt.figure(figsize=(6, 6))
     sns.scatterplot(data=bootstrap, x="Q", y="Qdash", hue="model", style="i")
@@ -483,7 +533,7 @@ def mr_rucker_jackknife_internal(dat, parameters=None):
         "bootstrap_estimates": modsel,
         "boostrap_q": bootstrap,
         "q_plot": q_plot,
-        "e_plot": e_plot
+        "e_plot": e_plot,
     }
 
 

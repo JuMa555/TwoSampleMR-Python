@@ -1,9 +1,15 @@
-from scipy.stats import norm
 import numpy as np
-from add_rsq import add_rsq
+from scipy.stats import norm
+
+from .add_rsq import add_rsq
+
 
 def steiger_filtering(dat):
-    return dat.groupby(["id.exposure", "id.outcome"], group_keys=False).apply(steiger_filtering_internal).reset_index(drop=True)
+    return (
+        dat.groupby(["id.exposure", "id.outcome"], group_keys=False)
+        .apply(steiger_filtering_internal)
+        .reset_index(drop=True)
+    )
 
 
 def steiger_filtering_internal(dat):
@@ -15,13 +21,19 @@ def steiger_filtering_internal(dat):
         dat["units.exposure"] = np.nan
 
     if dat["exposure"].nunique(dropna=True) != 1:
-        raise ValueError(f"Expected 1 unique exposure, found: {dat['exposure'].unique()}")
+        raise ValueError(
+            f"Expected 1 unique exposure, found: {dat['exposure'].unique()}"
+        )
     if dat["outcome"].nunique(dropna=True) != 1:
         raise ValueError(f"Expected 1 unique outcome, found: {dat['outcome'].unique()}")
     if dat["units.exposure"].dropna().nunique() > 1:
-        raise ValueError(f"Multiple units.exposure detected: {dat['units.exposure'].unique()}")
+        raise ValueError(
+            f"Multiple units.exposure detected: {dat['units.exposure'].unique()}"
+        )
     if dat["units.outcome"].dropna().nunique() > 1:
-        raise ValueError(f"Multiple units.outcome detected: {dat['units.outcome'].unique()}")
+        raise ValueError(
+            f"Multiple units.outcome detected: {dat['units.outcome'].unique()}"
+        )
 
     dat = add_rsq(dat)
 

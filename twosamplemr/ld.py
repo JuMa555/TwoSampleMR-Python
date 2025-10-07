@@ -1,20 +1,37 @@
 import pandas as pd
 import requests
-from read_data import random_string
-from verifytoken import get_opengwas_jwt
 
-def clump_data(dat, clump_kb=10000, clump_r2=0.001, clump_p1=1, clump_p2=1, pop="EUR", bfile=None, plink_bin=None):
+from .read_data import random_string
+from .verifytoken import get_opengwas_jwt
+
+
+def clump_data(
+    dat,
+    clump_kb=10000,
+    clump_r2=0.001,
+    clump_p1=1,
+    clump_p2=1,
+    pop="EUR",
+    bfile=None,
+    plink_bin=None,
+):
     if not isinstance(dat, pd.DataFrame):
         raise ValueError("Expecting data frame returned from format_data")
 
     if "pval.exposure" in dat.columns and "pval.outcome" in dat.columns:
-        print("pval.exposure and pval.outcome columns present. Using pval.exposure for clumping.")
+        print(
+            "pval.exposure and pval.outcome columns present. Using pval.exposure for clumping."
+        )
         pval_column = "pval.exposure"
     elif "pval.exposure" not in dat.columns and "pval.outcome" in dat.columns:
-        print("pval.exposure column not present, using pval.outcome column for clumping.")
+        print(
+            "pval.exposure column not present, using pval.outcome column for clumping."
+        )
         pval_column = "pval.outcome"
     elif "pval.exposure" not in dat.columns:
-        print("pval.exposure not present, setting clumping p-value to 0.99 for all variants")
+        print(
+            "pval.exposure not present, setting clumping p-value to 0.99 for all variants"
+        )
         dat["pval.exposure"] = 0.99
         pval_column = "pval.exposure"
     else:
@@ -23,11 +40,9 @@ def clump_data(dat, clump_kb=10000, clump_r2=0.001, clump_p1=1, clump_p2=1, pop=
     if "id.exposure" not in dat.columns:
         dat["id.exposure"] = random_string(1)
 
-    clump_input = pd.DataFrame({
-        "rsid": dat["SNP"],
-        "pval": dat[pval_column],
-        "id": dat["id.exposure"]
-    })
+    clump_input = pd.DataFrame(
+        {"rsid": dat["SNP"], "pval": dat[pval_column], "id": dat["id.exposure"]}
+    )
 
     clump_payload = {
         "rsid": clump_input["rsid"].tolist(),
@@ -35,13 +50,15 @@ def clump_data(dat, clump_kb=10000, clump_r2=0.001, clump_p1=1, clump_p2=1, pop=
         "pthresh": clump_p1,
         "r2": clump_r2,
         "kb": clump_kb,
-        "pop": pop
+        "pop": pop,
     }
 
     token = get_opengwas_jwt()
     headers = {"Authorization": f"Bearer {token}"}
 
-    res = requests.post("https://api.opengwas.io/api/ld/clump", json=clump_payload, headers=headers)
+    res = requests.post(
+        "https://api.opengwas.io/api/ld/clump", json=clump_payload, headers=headers
+    )
 
     try:
         data = res.json()
@@ -61,17 +78,18 @@ def ld_matrix(variants, with_alleles=True, pop="EUR", bfile=None, plink_bin=None
         raise ValueError("SNP list must be smaller than 500.")
 
     if bfile is not None:
-        raise NotImplementedError("Local LD matrix computation using bfile and plink_bin is not yet implemented.")
+        raise NotImplementedError(
+            "Local LD matrix computation using bfile and plink_bin is not yet implemented."
+        )
 
-    payload = {
-        "rsid": variants,
-        "pop": pop
-    }
+    payload = {"rsid": variants, "pop": pop}
 
     token = get_opengwas_jwt()
     headers = {"Authorization": f"Bearer {token}"}
 
-    response = requests.post("https://api.opengwas.io/api/ld/matrix", json=payload, headers=headers)
+    response = requests.post(
+        "https://api.opengwas.io/api/ld/matrix", json=payload, headers=headers
+    )
 
     res = response.json()
 
@@ -92,10 +110,15 @@ def ld_matrix(variants, with_alleles=True, pop="EUR", bfile=None, plink_bin=None
     found_rsids = [s.split("_")[0] for s in snplist]
     missing = [s for s in variants if s not in found_rsids]
     if missing:
-        print("Warning: The following variants are not present in the LD reference panel:\n" + "\n".join(missing))
+        print(
+            "Warning: The following variants are not present in the LD reference panel:\n"
+            + "\n".join(missing)
+        )
 
     order = {s: i for i, s in enumerate(variants)}
-    sorted_indices = sorted(matrix.index, key=lambda x: order.get(x.split("_")[0] if "_" in x else x, -1))
+    sorted_indices = sorted(
+        matrix.index, key=lambda x: order.get(x.split("_")[0] if "_" in x else x, -1)
+    )
     matrix = matrix.loc[sorted_indices, sorted_indices]
 
     return matrix
