@@ -6,7 +6,7 @@ This repository contains a reimplementation of the [TwoSampleMR](https://github.
 It was developed as part of a master's thesis at UniZg-FER for academic purposes and learning.  
 
 
-[![PyPI version](https://badge.fury.io/py/twosamplemr.svg)](https://pypi.org/project/twosamplemr/)
+[![PyPI version](https://badge.fury.io/py/twosamplemr.svg?nocache=1)](https://pypi.org/project/twosamplemr/)
 
 
 | Module | Description |
@@ -22,16 +22,17 @@ It was developed as part of a master's thesis at UniZg-FER for academic purposes
 
 
 ## Installation
+```python
 pip install twosamplemr
-
+```
 
 ## Example Usage:
 
 ```python
-from instruments import extract_instruments
-from query import extract_outcome_data
-from harmonise import harmonise_data
-from mr import mr
+from twosamplemr.instruments import extract_instruments
+from twosamplemr.query import extract_outcome_data
+from twosamplemr.harmonise import harmonise_data
+from twosamplemr.mr import mr
 
 exposure = extract_instruments(["ieu-a-2"])
 outcome = extract_outcome_data(exposure["SNP"], ["ieu-a-7"])
@@ -40,5 +41,6 @@ res = mr(dat)
 print(res)
 ```
 
-## License
+*This project is based on the original R implementation by Gibran Hemani, Philip Haycock, Jie Zheng, Tom Gaunt, Ben Elsworth, Tom Palmer, available at [MRC IEU TwoSampleMR](https://github.com/MRCIEU/TwoSampleMR), licensed under the MIT License.*
+
 MIT License © 2025 Jurica Matosic

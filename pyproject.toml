@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "twosamplemr"
-version = "0.1.2"
+version = "0.1.3"
 description = "Two-sample Mendelian randomization implemented in Python"
 authors = [
     { name="Jurica Matosic", email="jurica.juki.matosic@gmail.com" }

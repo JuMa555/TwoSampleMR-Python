@@ -3,7 +3,7 @@ import pandas as pd
 import statsmodels.api as sm
 from scipy import stats
 from scipy.optimize import minimize
-from scipy.stats import binom_test, chi2, norm
+from scipy.stats import binomtest, chi2, norm
 
 from .mr_grip import mr_grip
 from .mr_mode import (
@@ -972,7 +972,7 @@ def mr_sign(b_exp, b_out, se_exp=None, se_out=None, parameters=None):
     x = np.sum(np.sign(b_exp) == np.sign(b_out))
     n = np.sum(~np.isnan(b_exp) & ~np.isnan(b_out))
 
-    out = binom_test(x=x, n=n, p=0.5, alternative="two-sided")
+    out = binomtest(x=x, n=n, p=0.5, alternative="two-sided")
     b = (x / n - 0.5) * 2
 
     return {"b": b, "se": np.nan, "pval": out, "nsnp": n}
